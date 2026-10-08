@@ -1,6 +1,6 @@
 {
   "name": "recording-browser-walkthroughs",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Record internal walkthrough videos of any app running locally in a browser, with one visual standard drawn in the page by a Playwright kit; app specifics come in through adapter hooks.",
   "author": { "name": "Alisson Krul", "url": "https://github.com/afkrul" },
   "repository": "https://github.com/afkrul/claude-skills",

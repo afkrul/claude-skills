@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Records walkthrough videos of any app running locally in a browser",
   "engines": { "node": ">=18" },
-  "scripts": { "install-browser": "playwright-core install chromium" },
+  "scripts": { "install-browser": "playwright-core install chromium", "test": "node --test test/*.test.mjs" },
   "dependencies": {
     "playwright-core": "1.57.0"
   }

@@ -85,6 +85,8 @@ The look is `STANDARD` in the kit; `startVideo({ style: {...} })` or an adapter'
 - `v.goto(path)` (through the adapter's `navigate`), `v.pause(ms)`, `v.setTheme('dark')`, `v.signInAs({ login, isSignedIn, authCacheKey })` (switch user off camera)
 - `v.finish({ recap })` returns `{ mp4, chapters, copied, seconds }`; `v.abort()` on failure
 
+If `startVideo` throws (login refused, `init` failed, start page down), it has already closed the browser; the error is the caller's. After it returns, the browser is yours: wrap the walkthrough in `try { ... } catch (e) { await v.abort(); throw e; }` (as `examples/static-app/record.mjs` does), or a stray Chromium keeps the script from exiting. `loginRetries` (default 0) and `loginRetryDelayMs` (default 2000) retry a refused login, e.g. the first one after a database reseed; a TOTP login wants a delay past the 30 s window.
+
 `target` is a Playwright locator or a CSS string; `v.page` and `v.context` are Playwright's. Also exported: `STANDARD`, `toMp4`, `extractFrames`, `authenticate`, `totp`, `defaultNavigate`, `defaultWaitForIdle`, `waitForQuiet`, `isLocalUrl`. Options and environment variables: [REQUIREMENTS.md](REQUIREMENTS.md#options-and-environment-variables).
 
 ## Common mistakes

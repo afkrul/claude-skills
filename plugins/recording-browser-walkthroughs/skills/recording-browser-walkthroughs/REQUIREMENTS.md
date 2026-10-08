@@ -70,6 +70,7 @@ Options passed to `startVideo` win; then the adapter's fields; then the environm
 | `totalSteps` | | — | the N in "Step n / N" (or `chapter({ steps })` per section) |
 | `slug` / `name` | | from title / `<date>-<slug>` | file name |
 | `startPath` | | `/` | first page, loaded behind the title card |
+| `loginRetries` / `loginRetryDelayMs` | | `0` / `2000` | retry a refused login (e.g. right after a reseed); a TOTP login wants > 30 s |
 | `speed` | | `1` | every hold and reading time is divided by it |
 | `viewport` | | `1920×1080` | |
 | `lang` | | `en` | `pt` for Portuguese labels; `labels: {…}` overrides any |

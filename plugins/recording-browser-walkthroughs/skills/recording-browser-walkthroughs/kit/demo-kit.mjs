@@ -388,20 +388,46 @@ export async function startVideo(o) {
     headless: opt.headless,
     args: ['--no-sandbox', '--hide-scrollbars', ...(opt.hostMap.length ? [`--host-resolver-rules=${opt.hostMap.map(h => `MAP ${h} 127.0.0.1`).join(',')}`] : [])],
   });
-  const signIn = hooks => authenticate(browser, {
-    baseUrl: opt.baseUrl, viewport: opt.viewport, waitForIdle,
-    login: hooks.login, isSignedIn: hooks.isSignedIn, cacheKey: hooks.authCacheKey,
-  });
-  let storageState = opt.storageState;
-  if (!storageState && opt.login) storageState = await signIn(opt);
+  // From here on, anything that throws before startVideo returns closes the browser first: an open
+  // Chromium keeps the node process alive, and the caller's script would hang instead of failing.
+  let context = null;
+  const closeAll = async () => {
+    await context?.close().catch(() => {});
+    await browser.close().catch(() => {});
+  };
+  // A refused login (e.g. the first one after a database reseed) is retried `loginRetries` times,
+  // `loginRetryDelayMs` apart (a TOTP login may need a new 30 s window).
+  const retries = Math.max(0, opt.loginRetries ?? 0);
+  const signIn = async hooks => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await authenticate(browser, {
+          baseUrl: opt.baseUrl, viewport: opt.viewport, waitForIdle,
+          login: hooks.login, isSignedIn: hooks.isSignedIn, cacheKey: hooks.authCacheKey,
+        });
+      } catch (e) {
+        if (attempt >= retries) throw e;
+        console.error(`[demo-kit] login failed (${String(e?.message ?? e).split('\n')[0]}); retry ${attempt + 1} of ${retries}`);
+        await new Promise(r => setTimeout(r, opt.loginRetryDelayMs ?? 2000));
+      }
+    }
+  };
+  let page;
+  try {
+    let storageState = opt.storageState;
+    if (!storageState && opt.login) storageState = await signIn(opt);
 
-  const context = await browser.newContext({
-    viewport: opt.viewport, colorScheme: opt.theme, storageState,
-    recordVideo: { dir: rawDir, size: opt.viewport },
-  });
-  if (opt.init) await opt.init(context, { theme: opt.theme });
-  await context.addInitScript(overlayScript, S);
-  const page = await context.newPage();
+    context = await browser.newContext({
+      viewport: opt.viewport, colorScheme: opt.theme, storageState,
+      recordVideo: { dir: rawDir, size: opt.viewport },
+    });
+    if (opt.init) await opt.init(context, { theme: opt.theme });
+    await context.addInitScript(overlayScript, S);
+    page = await context.newPage();
+  } catch (e) {
+    await closeAll();
+    throw e;
+  }
   const t0 = Date.now();
   const chapters = [];
   const mark = (title, kind = 'step') => chapters.push({ at: Date.now(), title, kind });
@@ -630,23 +656,27 @@ export async function startVideo(o) {
       return { mp4, chapters: chaptersPath, copied, seconds: videoSeconds(mp4), webm: opt.keepWebm ? webm : null };
     },
 
-    /** Abort without producing a video (closes the browser). */
-    async abort() { await context.close().catch(() => {}); await browser.close().catch(() => {}); },
+    /** Abort without producing a video (closes the browser; safe to call more than once). */
+    async abort() { await closeAll(); },
   };
 
   // Title card: the overlay draws it from the first paint of the first page (see firstCard); the
   // app loads underneath, the card holds, then it is removed (a plain cut, no fade).
-  await page.goto(opt.baseUrl + opt.startPath, { waitUntil: 'load' });
-  await waitForIdle(page);
-  if (opt.isSignedIn && !(await opt.isSignedIn(page, { baseUrl: opt.baseUrl }))) {
-    await v.abort();
-    throw new Error(`not signed in at ${page.url()}: pass login (or storageState), or check the adapter's credentials`);
+  let titleShownAt;
+  try {
+    await page.goto(opt.baseUrl + opt.startPath, { waitUntil: 'load' });
+    await waitForIdle(page);
+    if (opt.isSignedIn && !(await opt.isSignedIn(page, { baseUrl: opt.baseUrl })))
+      throw new Error(`not signed in at ${page.url()}: pass login (or storageState), or check the adapter's credentials`);
+    await ov('ensure');
+    titleShownAt = Date.now();
+    mark('Title', 'title');
+    // Held like a section card when it carries a purpose line: every line has to be readable.
+    await page.waitForTimeout(Math.max(pace(S.titleMs), opt.purpose ? pace((3 + Math.ceil(opt.purpose.length / 70)) * S.cardMsPerLine) : 0));
+  } catch (e) {
+    await closeAll();
+    throw e;
   }
-  await ov('ensure');
-  const titleShownAt = Date.now();
-  mark('Title', 'title');
-  // Held like a section card when it carries a purpose line: every line has to be readable.
-  await page.waitForTimeout(Math.max(pace(S.titleMs), opt.purpose ? pace((3 + Math.ceil(opt.purpose.length / 70)) * S.cardMsPerLine) : 0));
   cardUp = true; // lifted by the first action, or replaced by a first chapter card (no page flash between)
   return v;
 }
