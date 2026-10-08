@@ -1,0 +1,11 @@
+{
+  "name": "browser-walkthrough-kit",
+  "private": true,
+  "type": "module",
+  "description": "Records walkthrough videos of any app running locally in a browser",
+  "engines": { "node": ">=18" },
+  "scripts": { "install-browser": "playwright-core install chromium" },
+  "dependencies": {
+    "playwright-core": "1.57.0"
+  }
+}

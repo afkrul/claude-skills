@@ -1,0 +1,11 @@
+node_modules/
+# ffmpeg fallback installed by the kit on first use
+.py/
+# recordings and scratch output
+videos/
+*.mp4
+*.webm
+.raw-*/
+failed.png
+frame-*.png
+.DS_Store

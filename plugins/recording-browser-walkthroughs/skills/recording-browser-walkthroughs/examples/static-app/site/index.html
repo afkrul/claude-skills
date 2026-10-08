@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Parcel desk</title>
+<style>
+  :root { --bg:#f8fafc; --fg:#0f172a; --muted:#64748b; --line:#e2e8f0; --card:#fff; --accent:#2563eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  header { position:fixed; inset:0 0 auto 0; height:56px; display:flex; align-items:center; gap:24px; padding:0 32px; background:#0f172a; color:#fff; z-index:5; }
+  header b { font-size:17px; } header a { color:#cbd5e1; text-decoration:none; } header a:hover { color:#fff; }
+  main { max-width:1100px; margin:0 auto; padding:96px 32px 48px; }
+  h1 { font-size:26px; margin:0 0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; }
+  input, button { font:inherit; padding:9px 12px; border-radius:8px; border:1px solid var(--line); }
+  button { background:var(--accent); color:#fff; border:0; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; margin-top:16px; }
+  th, td { text-align:left; padding:12px 10px; border-bottom:1px solid var(--line); }
+  tr.row { cursor:pointer; } tr.row:hover { background:#f1f5f9; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:13px; background:#e2e8f0; }
+  .badge.stuck { background:#fee2e2; color:#991b1b; } .badge.moving { background:#dcfce7; color:#166534; }
+  dl { display:grid; grid-template-columns:180px 1fr; gap:10px 16px; margin:0; } dt { color:var(--muted); }
+  .login { max-width:380px; margin:120px auto; display:grid; gap:12px; }
+</style>
+</head>
+<body>
+<header><b>Parcel desk</b><a href="/" data-link>Parcels</a><span style="flex:1"></span><span id="who"></span></header>
+<main id="view"></main>
+<script>
+  // A tiny single-page app: history routing, data from /api/parcels. Stands in for "any app in a browser".
+  const view = document.getElementById('view');
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  async function parcels() { return (await fetch('/api/parcels')).json(); }
+  const badge = p => `<span class="badge ${p.stuck ? 'stuck' : 'moving'}" data-status>${esc(p.status)}</span>`;
+
+  async function list(q = '') {
+    const all = await parcels();
+    const rows = all.filter(p => !q || (p.id + p.recipient).toLowerCase().includes(q.toLowerCase()));
+    view.innerHTML = `<h1>Parcels</h1><div class="card">
+      <input id="search" placeholder="Search by number or recipient" style="width:360px" value="${esc(q)}">
+      <table><thead><tr><th>Number</th><th>Recipient</th><th>Status</th></tr></thead><tbody>
+      ${rows.map(p => `<tr class="row" data-id="${p.id}"><td>${p.id}</td><td>${esc(p.recipient)}</td><td>${badge(p)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+    const s = document.getElementById('search');
+    s.oninput = () => { clearTimeout(s.t); s.t = setTimeout(() => list(s.value).then(() => { const n = document.getElementById('search'); n.focus(); n.setSelectionRange(99, 99); }), 300); };
+    view.querySelectorAll('tr.row').forEach(r => r.onclick = () => go('/parcels/' + r.dataset.id));
+  }
+
+  async function detail(id) {
+    const p = (await parcels()).find(x => x.id === id);
+    if (!p) { view.innerHTML = '<h1>Not found</h1>'; return; }
+    view.innerHTML = `<h1>Parcel ${p.id}</h1><div class="card"><dl>
+      <dt>Recipient</dt><dd>${esc(p.recipient)}</dd>
+      <dt>Status</dt><dd>${badge(p)}</dd>
+      <dt>Why</dt><dd data-why>${esc(p.why)}</dd>
+      <dt>Who acts</dt><dd data-who>${esc(p.who)}</dd>
+      </dl></div>`;
+  }
+
+  function render() {
+    const m = location.pathname.match(/^\/parcels\/([\w-]+)$/);
+    return m ? detail(m[1]) : list();
+  }
+  function go(path) { history.pushState({}, '', path); return render(); }
+  window.app = { go }; // what the example adapter calls to navigate without a reload
+  document.addEventListener('click', e => { const a = e.target.closest('a[data-link]'); if (a) { e.preventDefault(); go(a.getAttribute('href')); } });
+  addEventListener('popstate', render);
+  document.getElementById('who').textContent = decodeURIComponent((document.cookie.match(/user=([^;]+)/) || [])[1] || '');
+  render();
+</script>
+</body>
+</html>

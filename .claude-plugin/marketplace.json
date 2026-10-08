@@ -1,0 +1,14 @@
+{
+  "name": "afkrul-skills",
+  "owner": { "name": "Alisson Krul", "url": "https://github.com/afkrul" },
+  "metadata": { "description": "Claude Code skills by Alisson Krul" },
+  "plugins": [
+    {
+      "name": "recording-browser-walkthroughs",
+      "source": "./plugins/recording-browser-walkthroughs",
+      "description": "Record internal walkthrough videos of any app running locally in a browser: captions, click boxes, callouts, chapter cards and jumps, drawn in the page by a Playwright kit, out as 1080p MP4 with chapters. App specifics (navigation, login, data changes) come in as adapter hooks.",
+      "category": "productivity",
+      "keywords": ["video", "tutorial", "walkthrough", "demo", "playwright"]
+    }
+  ]
+}
